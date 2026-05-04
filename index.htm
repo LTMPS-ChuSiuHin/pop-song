@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>流行曲結構學習系統 (雲端版)</title>
+    <style>
+        /* 全局與背景設定 */
+        body {
+            font-family: 'Segoe UI', "Microsoft JhengHei", "PingFang HK", sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%);
+            color: #333;
+            min-height: 100vh;
+        }
+
+        header {
+            background: rgba(255, 255, 255, 0.9);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            padding: 20px;
+            text-align: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        h1 { margin: 0; color: #2c3e50; font-size: 28px; font-weight: 800;}
+
+        /* 學生資訊列 */
+        .student-bar {
+            background: #2c3e50;
+            color: white;
+            padding: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            font-size: 16px;
+        }
+        .student-bar select, .student-bar input {
+            padding: 5px 10px;
+            font-size: 16px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            outline: none;
+        }
+        .student-bar input { width: 80px; }
+
+        nav {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            padding: 20px;
+        }
+        nav button {
+            background: rgba(255, 255, 255, 0.5);
+            border: 2px solid transparent;
+            padding: 12px 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 30px;
+            color: #555;
+            transition: all 0.3s;
+            backdrop-filter: blur(5px);
+        }
+        nav button:hover, nav button.active {
+            background: #fff;
+            color: #6c5ce7;
+            border-color: #6c5ce7;
+            box-shadow: 0 5px 15px rgba(108, 92, 231, 0.2);
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto 40px auto;
+            padding: 30px;
+            background: rgba(255, 255, 255, 0.85);
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .section { display: none; animation: fadeIn 0.4s ease forwards; }
+        .section.active { display: block; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .btn {
+            border: none; border-radius: 8px; cursor: pointer; font-size: 15px; font-weight: bold;
+            transition: all 0.2s ease; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            padding: 10px 15px; display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+        }
+        .btn:hover { transform: scale(1.05); }
+        .btn:active { transform: scale(0.95); }
+        .btn-action { background: #ff7675; color: white; }
+        .btn-play { background: #00b894; color: white; }
+        .btn-stop { background: #d63031; color: white; }
+        .btn-submit { background: #0984e3; color: white; padding: 12px 20px; font-size: 16px; }
+
+        /* 結構顯示與拖曳區塊 */
+        .structure-display {
+            margin-top: 15px; padding: 20px; border: 2px dashed #b2bec3; min-height: 150px;
+            border-radius: 12px; display: flex; flex-direction: column; gap: 12px; background: rgba(255, 255, 255, 0.5);
+        }
+        .structure-item {
+            padding: 15px; border-radius: 10px; font-weight: bold; font-size: 18px;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.05); transition: all 0.2s ease;
+            display: flex; justify-content: space-between; align-items: center;
+            cursor: grab; position: relative;
+        }
+        .structure-item:active { cursor: grabbing; opacity: 0.8; }
+        .structure-item.playing { transform: scale(1.02); box-shadow: 0 0 15px #00b894; border: 2px solid #00b894; }
+        .structure-item.drag-over { border-top: 3px solid #6c5ce7; margin-top: 5px; }
+
+        .delete-btn {
+            background: rgba(0,0,0,0.1); border: none; border-radius: 50%; width: 30px; height: 30px;
+            cursor: pointer; font-weight: bold; color: #333; display: flex; align-items: center; justify-content: center;
+        }
+        .delete-btn:hover { background: #ff7675; color: white; }
+
+        /* 分析顏色 */
+        .color-intro { background: #74b9ff; color: #fff;} .color-verse { background: #55efc4; color: #2d3436;} 
+        .color-prechorus { background: #ffeaa7; color: #2d3436;} .color-chorus { background: #ff7675; color: #fff;} 
+        .color-interlude { background: #fab1a0; color: #2d3436;} .color-bridge { background: #a29bfe; color: #fff;} 
+        .color-outro { background: #dfe6e9; color: #2d3436;} 
+
+        /* 重組 Grid */
+        .reassembly-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
+        .module-row {
+            display: flex; align-items: center; justify-content: space-between; background: #fff;
+            padding: 12px 20px; border-radius: 12px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        .module-num { font-size: 24px; font-weight: 900; color: #6c5ce7; width: 30px; }
+        .btn-preview { background: #0984e3; color: white; padding: 8px 12px; }
+        .btn-add { background: #6c5ce7; color: white; padding: 8px 15px; }
+
+        /* 課業檢視表格 */
+        .review-table { width: 100%; border-collapse: collapse; margin-top: 20px; background: white; border-radius: 10px; overflow: hidden;}
+        .review-table th, .review-table td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #ddd; }
+        .review-table th { background: #6c5ce7; color: white; }
+        .review-table tr:hover { background-color: #f1f2f6; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>🎵 流行曲結構學習系統</h1>
+</header>
+
+<div class="student-bar">
+    <label>班別：
+        <select id="student-class">
+            <option value="6A">6A</option>
+            <option value="6B">6B</option>
+            <option value="6C">6C</option>
+            <option value="6D">6D</option>
+            <option value="6E">6E</option>
+        </select>
+    </label>
+    <label>學號：
+        <input type="number" id="student-num" min="1" max="40" placeholder="1-40">
+    </label>
+</div>
+
+<nav>
+    <button id="nav-analysis" class="active" onclick="window.switchTab('analysis')">樂曲結構分析</button>
+    <button id="nav-reassembly" onclick="window.switchTab('reassembly')">流行曲重組</button>
+    <button id="nav-review" onclick="window.switchTab('review')">課業檢視 (老師專用)</button>
+</nav>
+
+<div class="container">
+    <div id="sec-analysis" class="section active">
+        <h2 style="color: #2c3e50; border-bottom: 2px solid #6c5ce7; padding-bottom: 10px; display: flex; justify-content: space-between;">
+            樂曲結構分析
+            <button class="btn btn-submit" onclick="window.submitAssignment('analysis')">📤 上載課業</button>
+        </h2>
+        
+        <div style="margin-bottom: 20px;">
+            <label for="song-select" style="font-size: 18px; font-weight: bold;">選擇樂曲：</label>
+            <select id="song-select" style="font-size: 16px; padding: 8px; border-radius: 5px; border: 1px solid #ccc;">
+                <option value="世上只有">世上只有</option>
+                <option value="真的愛你">真的愛你</option>
+                <option value="單車">單車</option>
+            </select>
+        </div>
+        
+        <div style="background: #f8f9fa; padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+            <h3 style="margin-top: 0;">新增段落：</h3>
+            <button class="btn color-intro" onclick="window.addAnalysisPart('前奏')">前奏</button>
+            <button class="btn color-verse" onclick="window.addAnalysisPart('主歌')">主歌</button>
+            <button class="btn color-prechorus" onclick="window.addAnalysisPart('導歌')">導歌</button>
+            <button class="btn color-chorus" onclick="window.addAnalysisPart('副歌')">副歌</button>
+            <button class="btn color-interlude" onclick="window.addAnalysisPart('間奏')">間奏</button>
+            <button class="btn color-bridge" onclick="window.addAnalysisPart('橋段')">橋段</button>
+            <button class="btn color-outro" onclick="window.addAnalysisPart('尾聲')">尾聲</button>
+            <button class="btn btn-action" style="float: right;" onclick="window.clearStructure('analysis')">🗑️ 清空</button>
+        </div>
+
+        <p style="color: #666; font-size: 14px;">💡 提示：建立後可<b>按住方塊拖曳</b>改變順序，或按右側的 <b>×</b> 刪除段落。</p>
+        <div id="analysis-display" class="structure-display"></div>
+    </div>
+
+    <div id="sec-reassembly" class="section">
+        <h2 style="color: #2c3e50; border-bottom: 2px solid #00b894; padding-bottom: 10px; display: flex; justify-content: space-between;">
+            流行曲重組
+            <button class="btn btn-submit" style="background: #00b894;" onclick="window.submitAssignment('reassembly')">📤 上載課業</button>
+        </h2>
+        
+        <div class="reassembly-grid">
+            <div>
+                <h3 style="color: #2d3436;">1. 試聽與選擇段落</h3>
+                <div id="module-container"></div>
+            </div>
+            
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 12px;">
+                <h3 style="color: #2d3436; margin-top: 0;">2. 控制與結構設計</h3>
+                <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+                    <button class="btn btn-play" onclick="window.playFullSong()">▶ 播放完整樂曲</button>
+                    <button class="btn btn-stop" onclick="window.stopAudio()">⏹ 停止播放</button>
+                    <button class="btn btn-action" onclick="window.clearStructure('reassembly')">🗑️ 清空</button>
+                </div>
+                
+                <h4 style="margin-bottom: 10px;">你的樂曲結構 (可拖曳排序)：</h4>
+                <div id="reassembly-display" class="structure-display" style="min-height: 300px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="sec-review" class="section">
+        <h2 style="color: #2c3e50; border-bottom: 2px solid #e17055; padding-bottom: 10px; display: flex; justify-content: space-between;">
+            課業檢視
+            <button class="btn" style="background:#e17055; color:white;" onclick="window.fetchReviews()">🔄 重新整理列表</button>
+        </h2>
+        <div id="review-content" style="overflow-x: auto;">
+            <p style="text-align: center; color: #666; margin-top: 30px;">載入中...</p>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    // 引入 Firebase SDK (v10)
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
+    import { getFirestore, collection, addDoc, getDocs, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
+
+    // 初始化 Firebase
+    const firebaseConfig = {
+      apiKey: "AIzaSyBOXaRT3m9vFDJwfTMQ_DFHLnNvgY6UHeU",
+      authDomain: "ltmps-rhythmgame.firebaseapp.com",
+      projectId: "ltmps-rhythmgame",
+      storageBucket: "ltmps-rhythmgame.firebasestorage.app",
+      messagingSenderId: "66957159600",
+      appId: "1:66957159600:web:9cda88f32f7c61fa65df75"
+    };
+    
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // 資料儲存
+    const structures = { analysis: [], reassembly: [] };
+    const analysisColors = {
+        '前奏': 'color-intro', '主歌': 'color-verse', '導歌': 'color-prechorus',
+        '副歌': 'color-chorus', '間奏': 'color-interlude', '橋段': 'color-bridge', '尾聲': 'color-outro'
+    };
+
+    let currentAudio = null;
+    let isPlayingFullSong = false;
+    let currentPlayIndex = 0;
+    let draggedItem = null; // 用於拖曳功能
+
+    // 初始化頁面
+    window.onload = () => { window.generateModules(); };
+
+    // --- 輔助：處理拖曳排序 (Drag and Drop) ---
+    function setupDragAndDrop(item, index, section) {
+        item.addEventListener('dragstart', (e) => {
+            draggedItem = { index, section };
+            setTimeout(() => item.style.opacity = '0.5', 0);
+        });
+        
+        item.addEventListener('dragend', () => {
+            draggedItem = null;
+            item.style.opacity = '1';
+            document.querySelectorAll('.structure-item').forEach(el => el.classList.remove('drag-over'));
+        });
+
+        item.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            if (draggedItem && draggedItem.section === section) item.classList.add('drag-over');
+        });
+
+        item.addEventListener('dragleave', () => item.classList.remove('drag-over'));
+
+        item.addEventListener('drop', (e) => {
+            e.preventDefault();
+            item.classList.remove('drag-over');
+            if (draggedItem && draggedItem.section === section && draggedItem.index !== index) {
+                // 陣列位置交換
+                const movedData = structures[section].splice(draggedItem.index, 1)[0];
+                structures[section].splice(index, 0, movedData);
+                if(section === 'analysis') renderAnalysis();
+                else renderReassembly();
+            }
+        });
+    }
+
+    // --- UI 渲染邏輯 ---
+    function renderAnalysis() {
+        const displayDiv = document.getElementById('analysis-display');
+        displayDiv.innerHTML = '';
+        structures['analysis'].forEach((partName, index) => {
+            const item = document.createElement('div');
+            item.className = `structure-item ${analysisColors[partName]}`;
+            item.draggable = true;
+            item.innerHTML = `
+                <span>≡ ${partName}</span>
+                <button class="delete-btn" onclick="window.removePart('analysis', ${index})">×</button>
+            `;
+            setupDragAndDrop(item, index, 'analysis');
+            displayDiv.appendChild(item);
+        });
+    }
+
+    function renderReassembly() {
+        const displayDiv = document.getElementById('reassembly-display');
+        displayDiv.innerHTML = '';
+        structures['reassembly'].forEach((num, index) => {
+            const item = document.createElement('div');
+            const hue = (num * 40) % 360; 
+            item.style.backgroundColor = `hsl(${hue}, 70%, 85%)`;
+            item.style.color = `hsl(${hue}, 80%, 20%)`;
+            item.className = 'structure-item';
+            item.id = `reassembly-item-${index}`;
+            item.draggable = true;
+            item.innerHTML = `
+                <span>≡ 段落 <b>${num}</b> <span style="font-size: 12px; color: #666;">(${num}.wav)</span></span>
+                <button class="delete-btn" onclick="window.removePart('reassembly', ${index})">×</button>
+            `;
+            setupDragAndDrop(item, index, 'reassembly');
+            displayDiv.appendChild(item);
+        });
+    }
+
+    // --- 將功能綁定到 window (以便 inline onclick 呼叫) ---
+    window.switchTab = (tabId) => {
+        document.querySelectorAll('nav button').forEach(btn => btn.classList.remove('active'));
+        document.getElementById('nav-' + tabId).classList.add('active');
+        document.querySelectorAll('.section').forEach(sec => sec.classList.remove('active'));
+        document.getElementById('sec-' + tabId).classList.add('active');
+        window.stopAudio();
+        if(tabId === 'review') window.fetchReviews();
+    };
+
+    window.addAnalysisPart = (partName) => { structures['analysis'].push(partName); renderAnalysis(); };
+    window.addReassemblyPart = (num) => { structures['reassembly'].push(num); renderReassembly(); };
+    
+    window.removePart = (section, index) => {
+        structures[section].splice(index, 1);
+        if(section === 'analysis') renderAnalysis();
+        else { renderReassembly(); window.stopAudio(); }
+    };
+
+    window.clearStructure = (section) => {
+        structures[section] = [];
+        if(section === 'analysis') renderAnalysis();
+        if(section === 'reassembly') { renderReassembly(); window.stopAudio(); }
+    };
+
+    window.generateModules = () => {
+        const container = document.getElementById('module-container');
+        for (let i = 1; i <= 7; i++) {
+            container.innerHTML += `
+                <div class="module-row">
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <span class="module-num">${i}</span>
+                        <div>
+                            <button class="btn btn-preview" onclick="window.previewAudio('${i}.wav')">▶ 試聽</button>
+                            <button class="btn btn-stop" onclick="window.stopAudio()">⏹ 停止</button>
+                        </div>
+                    </div>
+                    <button class="btn btn-add" onclick="window.addReassemblyPart('${i}')">+ 加入</button>
+                </div>
+            `;
+        }
+    };
+
+    // --- 音效處理 ---
+    window.previewAudio = (filename) => {
+        window.stopAudio();
+        currentAudio = new Audio(filename);
+        currentAudio.play().catch(e => alert(`無法播放音檔，請確認 ${filename} 是否存在資料夾中。`));
+    };
+
+    window.stopAudio = () => {
+        isPlayingFullSong = false;
+        if (currentAudio) { currentAudio.pause(); currentAudio.currentTime = 0; currentAudio = null; }
+        document.querySelectorAll('.structure-item.playing').forEach(el => el.classList.remove('playing'));
+    };
+
+    window.playFullSong = () => {
+        if (structures['reassembly'].length === 0) { alert("請先加入樂曲段落！"); return; }
+        window.stopAudio(); isPlayingFullSong = true; currentPlayIndex = 0; playNext();
+    };
+
+    function playNext() {
+        if (!isPlayingFullSong) return;
+        if (currentPlayIndex >= structures['reassembly'].length) {
+            isPlayingFullSong = false;
+            document.querySelectorAll('.structure-item.playing').forEach(el => el.classList.remove('playing'));
+            return;
+        }
+
+        const filename = `${structures['reassembly'][currentPlayIndex]}.wav`;
+        document.querySelectorAll('.structure-item.playing').forEach(el => el.classList.remove('playing'));
+        const currentItemUI = document.getElementById(`reassembly-item-${currentPlayIndex}`);
+        if (currentItemUI) currentItemUI.classList.add('playing');
+
+        currentAudio = new Audio(filename);
+        currentAudio.play().catch(e => { alert(`播放中斷，找不到音檔：${filename}`); window.stopAudio(); });
+        currentAudio.onended = () => { currentPlayIndex++; playNext(); };
+    }
+
+    // --- Firebase 上載與讀取 ---
+    window.submitAssignment = async (type) => {
+        const studentClass = document.getElementById('student-class').value;
+        const studentNumRaw = document.getElementById('student-num').value;
+
+        if (!studentNumRaw || studentNumRaw < 1 || studentNumRaw > 40) {
+            alert('❌ 請輸入正確的學號 (1-40)！');
+            document.getElementById('student-num').focus();
+            return;
+        }
+        
+        // 確保 03 變為 3
+        const studentNumber = parseInt(studentNumRaw, 10);
+        const dataArray = structures[type];
+
+        if (dataArray.length === 0) {
+            alert('❌ 尚未建立結構，無法上載！');
+            return;
+        }
+
+        const payload = {
+            class: studentClass,
+            studentNumber: studentNumber,
+            taskType: type, // 'analysis' 或 'reassembly'
+            structure: dataArray,
+            timestamp: serverTimestamp()
+        };
+
+        if (type === 'analysis') {
+            payload.song = document.getElementById('song-select').value;
+        }
+
+        try {
+            await addDoc(collection(db, "music_assignments"), payload);
+            alert(`✅ ${studentClass}班 ${studentNumber}號 同學\n您的「${type === 'analysis' ? '樂曲結構分析' : '流行曲重組'}」已成功上載！`);
+        } catch (e) {
+            console.error("Error adding document: ", e);
+            alert("❌ 上載失敗，請檢查網路連線。");
+        }
+    };
+
+    window.fetchReviews = async () => {
+        const container = document.getElementById('review-content');
+        container.innerHTML = '<p style="text-align: center;">正在向伺服器讀取資料...</p>';
+
+        try {
+            const q = query(collection(db, "music_assignments"), orderBy("timestamp", "desc"));
+            const querySnapshot = await getDocs(q);
+            
+            if(querySnapshot.empty) {
+                container.innerHTML = '<p style="text-align: center;">目前還沒有學生提交課業。</p>';
+                return;
+            }
+
+            let tableHTML = `
+                <table class="review-table">
+                    <thead>
+                        <tr>
+                            <th>時間</th>
+                            <th>班別</th>
+                            <th>學號</th>
+                            <th>作業類型</th>
+                            <th>選擇樂曲</th>
+                            <th>結構序列</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            querySnapshot.forEach((doc) => {
+                const data = doc.data();
+                const timeStr = data.timestamp ? new Date(data.timestamp.toDate()).toLocaleString() : '剛剛';
+                const typeName = data.taskType === 'analysis' ? '結構分析' : '流行曲重組';
+                const songName = data.song || '---';
+                const structureStr = data.structure.join(' ➔ ');
+
+                tableHTML += `
+                    <tr>
+                        <td>${timeStr}</td>
+                        <td><b>${data.class}</b></td>
+                        <td><b>${data.studentNumber}</b></td>
+                        <td><span style="background:#eee; padding:3px 8px; border-radius:4px; font-size:14px;">${typeName}</span></td>
+                        <td>${songName}</td>
+                        <td style="color:#6c5ce7; font-weight:bold; font-size:14px;">${structureStr}</td>
+                    </tr>
+                `;
+            });
+            tableHTML += '</tbody></table>';
+            container.innerHTML = tableHTML;
+            
+        } catch (e) {
+            console.error("Error fetching documents: ", e);
+            container.innerHTML = '<p style="text-align: center; color: red;">讀取失敗，請確認 Firebase 權限與網路。</p>';
+        }
+    };
+</script>
+
+</body>
+</html>
