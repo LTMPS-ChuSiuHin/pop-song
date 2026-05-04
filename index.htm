@@ -74,7 +74,7 @@
         /* 按鈕美化 */
         .btn {
             border: none; border-radius: 8px; cursor: pointer; font-weight: bold;
-            padding: 10px 18px; display: inline-flex; align-items: center; gap: 6px;
+            padding: 10px 18px; display: inline-flex; align-items: center; gap: 6px; justify-content: center;
             transition: all 0.2s ease; box-shadow: 0 4px 10px rgba(0,0,0,0.1);
         }
         .btn:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(0,0,0,0.15); filter: brightness(1.05);}
@@ -116,10 +116,23 @@
             display: flex; justify-content: space-between; align-items: center;
             background: #fff; padding: 12px 15px; border-radius: 12px; margin-bottom: 10px; 
             box-shadow: 0 4px 10px rgba(0,0,0,0.05); border-left: 4px solid #6c5ce7;
-            transition: transform 0.2s ease;
+            transition: transform 0.2s ease; gap: 10px;
         }
         .module-row:hover { transform: translateX(5px); }
-        .module-row span { font-weight: 800; font-size: 18px; color: #2c3e50; }
+        .module-row span { font-weight: 800; font-size: 16px; color: #2c3e50; min-width: 50px; }
+
+        /* 音訊進度條美化 */
+        .audio-slider {
+            -webkit-appearance: none; flex-grow: 1; height: 6px;
+            background: #dfe6e9; border-radius: 5px; outline: none; cursor: pointer;
+        }
+        .audio-slider::-webkit-slider-thumb {
+            -webkit-appearance: none; appearance: none;
+            width: 16px; height: 16px; border-radius: 50%;
+            background: #0984e3; cursor: pointer; transition: 0.2s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        .audio-slider::-webkit-slider-thumb:hover { transform: scale(1.2); background: #6c5ce7; }
 
         /* 課業檢視過濾區塊 */
         .review-controls {
@@ -128,9 +141,7 @@
             box-shadow: inset 0 2px 5px rgba(255,255,255,1), 0 5px 15px rgba(0,0,0,0.05);
             flex-wrap: wrap; border: 1px solid rgba(255,255,255,0.8);
         }
-        .review-controls select {
-            padding: 8px 12px; border-radius: 8px; border: 1px solid #ccc; outline: none; font-size: 15px; font-weight: bold;
-        }
+        .review-controls select { padding: 8px 12px; border-radius: 8px; border: 1px solid #ccc; outline: none; font-size: 15px; font-weight: bold; }
 
         /* 檢視表格 */
         .review-table { width: 100%; border-collapse: collapse; background: white; margin-bottom: 30px; border-radius: 12px; overflow: hidden; box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
@@ -219,7 +230,6 @@
 
     <div id="sec-review" class="section">
         <h2 style="border-bottom: 2px solid #e17055; padding-bottom: 10px; color:#2c3e50;">課業檢視中心</h2>
-        
         <div class="review-controls">
             <label style="font-weight:bold; color:#2d3436;">選擇班別：
                 <select id="filter-class" onchange="window.renderReviewList()">
@@ -240,7 +250,6 @@
             </label>
             <button class="btn" style="background:#0984e3; color:white; margin-left:auto;" onclick="window.fetchData()">🔄 從雲端讀取/刷新</button>
         </div>
-
         <div id="review-list">
             <div class="empty-state">👆 請先在上方點擊「刷新」，並選擇【班別】與【課業類別】以顯示學生資料。</div>
         </div>
@@ -267,18 +276,20 @@
     const analysisColors = { '前奏': 'color-intro', '主歌': 'color-verse', '導歌': 'color-prechorus', '副歌': 'color-chorus', '間奏': 'color-interlude', '橋段': 'color-bridge', '尾聲': 'color-outro' };
     
     let currentAudio = null;
+    let activeModule = null; // 紀錄目前正在試聽的樂段
     let reviewData = []; 
     let hasFetchedData = false;
 
-    // 初始化重組清單
+    // 初始化重組清單 (加入互動進度條)
     window.onload = () => {
         const modC = document.getElementById('module-container');
         for(let i=1; i<=7; i++) {
             modC.innerHTML += `
                 <div class="module-row">
                     <span>樂段 ${i}</span>
-                    <div style="display:flex; gap:8px;">
-                        <button class="btn" style="background:#0984e3; color:white;" onclick="window.preview('${i}.wav')">▶ 試聽</button>
+                    <input type="range" id="progress-${i}" class="audio-slider" min="0" max="100" value="0" step="0.1" oninput="window.seekAudio(${i}, this.value)">
+                    <div style="display:flex; gap:8px; min-width: 150px; justify-content: flex-end;">
+                        <button id="btn-play-${i}" class="btn" style="background:#0984e3; color:white; width: 75px;" onclick="window.preview(${i}, '${i}.wav')">▶ 試聽</button>
                         <button class="btn btn-add" style="background:#6c5ce7; color:white;" onclick="window.addPart('reassembly','${i}')">+ 加入</button>
                     </div>
                 </div>`;
@@ -294,12 +305,10 @@
         window.stopAudio();
     };
 
-    // 新增與刪除段落
     window.addPart = (type, val) => { structures[type].push(val); render(type); };
     window.removePart = (type, index) => { structures[type].splice(index, 1); render(type); };
     window.clear = (type) => { structures[type] = []; render(type); window.stopAudio(); };
 
-    // 渲染結構方塊 (加入拖曳邏輯)
     function render(type) {
         const div = document.getElementById(type + '-display');
         div.innerHTML = '';
@@ -323,7 +332,6 @@
                 </span>
                 <button style="border:none; background:rgba(0,0,0,0.1); border-radius:50%; width:28px; height:28px; cursor:pointer; color:#333; font-weight:bold; transition:0.2s;" onmouseover="this.style.background='#ff7675'; this.style.color='white';" onmouseout="this.style.background='rgba(0,0,0,0.1)'; this.style.color='#333';" onclick="window.removePart('${type}',${i})">✕</button>`;
             
-            // 拖曳排序事件
             item.ondragstart = (e) => { e.dataTransfer.setData('index', i); setTimeout(()=>item.style.opacity='0.5',0); };
             item.ondragend = () => { item.style.opacity='1'; };
             item.ondragover = (e) => e.preventDefault();
@@ -338,9 +346,72 @@
         });
     }
 
-    // 音樂控制
-    window.preview = (f) => { window.stopAudio(); currentAudio = new Audio(f); currentAudio.play().catch(e=>alert('無法播放：' + f)); };
-    window.stopAudio = () => { if(currentAudio){ currentAudio.pause(); currentAudio.currentTime=0; } };
+    // --- 音樂與進度條控制邏輯 ---
+    window.resetPreviewUI = () => {
+        activeModule = null;
+        document.querySelectorAll('[id^="btn-play-"]').forEach(btn => btn.innerHTML = '▶ 試聽');
+    };
+
+    window.preview = (modIndex, f, startPercent = 0) => {
+        // 如果點擊的是正在播放的音軌，則執行「暫停」功能
+        if(activeModule === modIndex && currentAudio && !currentAudio.paused) {
+            currentAudio.pause();
+            document.getElementById(`btn-play-${modIndex}`).innerHTML = '▶ 試聽';
+            return;
+        }
+
+        window.stopAudio();
+        activeModule = modIndex;
+        currentAudio = new Audio(f);
+
+        // 更新介面按鈕為「暫停」
+        const playBtn = document.getElementById(`btn-play-${modIndex}`);
+        playBtn.innerHTML = '⏸ 暫停';
+
+        // 設定從特定進度開始播放
+        currentAudio.onloadedmetadata = () => {
+            if(startPercent > 0) {
+                currentAudio.currentTime = (startPercent / 100) * currentAudio.duration;
+            }
+        };
+
+        // 時時更新進度條
+        const slider = document.getElementById(`progress-${modIndex}`);
+        currentAudio.ontimeupdate = () => {
+            if(currentAudio.duration) {
+                slider.value = (currentAudio.currentTime / currentAudio.duration) * 100;
+            }
+        };
+
+        // 播放完畢後重置
+        currentAudio.onended = () => {
+            slider.value = 0;
+            window.resetPreviewUI();
+        };
+
+        currentAudio.play().catch(e=>alert('無法播放：請確認音檔存在。'));
+    };
+
+    // 拖曳進度條觸發的事件
+    window.seekAudio = (modIndex, percent) => {
+        if (activeModule === modIndex && currentAudio) {
+            // 如果是正在播放的音軌，直接更改進度
+            currentAudio.currentTime = (percent / 100) * currentAudio.duration;
+        } else {
+            // 如果是沒有播放的音軌，立刻從該處開始播放
+            window.preview(modIndex, `${modIndex}.wav`, percent);
+        }
+    };
+
+    window.stopAudio = () => { 
+        if(currentAudio){ 
+            currentAudio.pause(); 
+            currentAudio.currentTime = 0; 
+        } 
+        window.resetPreviewUI();
+        // 將所有進度條歸零
+        document.querySelectorAll('.audio-slider').forEach(s => s.value = 0);
+    };
     
     window.playSequence = async () => {
         if(structures.reassembly.length === 0) return alert('請先加入樂段！');
@@ -362,7 +433,7 @@
         }
     };
 
-    // Firebase 提交
+    // --- 課業資料提交與檢視邏輯 ---
     window.submitAssignment = async (type) => {
         const c = document.getElementById('student-class').value;
         const nRaw = document.getElementById('student-num').value;
@@ -381,14 +452,10 @@
                 timestamp: serverTimestamp()
             });
             alert('✅ 上載成功！');
-        } catch(e) { 
-            alert('❌ 失敗: 請檢查網路連線。'); 
-        } finally {
-            btn.innerHTML = "📤 上載課業"; btn.disabled = false;
-        }
+        } catch(e) { alert('❌ 失敗: 請檢查網路連線。'); } 
+        finally { btn.innerHTML = "📤 上載課業"; btn.disabled = false; }
     };
 
-    // --- 課業檢視與套用邏輯 ---
     window.fetchData = async () => {
         const btn = event.target;
         const originalText = btn.innerHTML;
@@ -401,11 +468,8 @@
             snap.forEach(doc => reviewData.push(doc.data()));
             hasFetchedData = true;
             window.renderReviewList();
-        } catch(e) { 
-            document.getElementById('review-list').innerHTML = '<div class="empty-state" style="color:red;">❌ 讀取失敗，請確認 Firebase 設定或網路狀態。</div>'; 
-        } finally {
-            btn.innerHTML = originalText; btn.disabled = false;
-        }
+        } catch(e) { document.getElementById('review-list').innerHTML = '<div class="empty-state" style="color:red;">❌ 讀取失敗。</div>'; } 
+        finally { btn.innerHTML = originalText; btn.disabled = false; }
     };
 
     window.renderReviewList = () => {
@@ -413,15 +477,8 @@
         const selectedClass = document.getElementById('filter-class').value;
         const selectedType = document.getElementById('filter-type').value;
 
-        if (!hasFetchedData) {
-            container.innerHTML = '<div class="empty-state">👆 請先點擊右上方的「從雲端讀取/刷新」按鈕。</div>';
-            return;
-        }
-
-        if (!selectedClass || !selectedType) {
-            container.innerHTML = '<div class="empty-state">🔍 請選擇上方選單中的【班別】與【課業類別】以顯示相關資料。</div>';
-            return;
-        }
+        if (!hasFetchedData) return container.innerHTML = '<div class="empty-state">👆 請先點擊右上方的「從雲端讀取/刷新」按鈕。</div>';
+        if (!selectedClass || !selectedType) return container.innerHTML = '<div class="empty-state">🔍 請選擇上方選單中的【班別】與【課業類別】以顯示相關資料。</div>';
 
         const filteredData = reviewData.filter(d => d.class === selectedClass && d.taskType === selectedType);
         container.innerHTML = ''; 
@@ -429,7 +486,6 @@
         if (selectedType === 'analysis') {
             const songs = ['世上只有', '真的愛你', '單車'];
             let hasAnyData = false;
-            
             songs.forEach(songName => {
                 const songData = filteredData.filter(d => d.song === songName);
                 if (songData.length > 0) {
@@ -438,10 +494,7 @@
                     container.innerHTML += generateTable(songData, 'analysis');
                 }
             });
-
-            if (!hasAnyData) {
-                container.innerHTML = `<div class="empty-state">暫無 ${selectedClass} 班「樂曲結構分析」的課業紀錄。</div>`;
-            }
+            if (!hasAnyData) container.innerHTML = `<div class="empty-state">暫無 ${selectedClass} 班的課業紀錄。</div>`;
         } else {
             if (filteredData.length > 0) {
                 container.innerHTML += `<div class="song-group-title">🎧 流行曲重組 (${filteredData.length} 份)</div>`;
@@ -456,48 +509,27 @@
         let html = `<table class="review-table"><thead><tr><th>提交時間</th><th>班別</th><th>學號</th><th>結構序列</th><th>操作</th></tr></thead><tbody>`;
         data.forEach(d => {
             const date = d.timestamp ? d.timestamp.toDate().toLocaleString('zh-HK') : '剛剛';
-            const structureDisplay = type === 'reassembly' 
-                ? d.structure.map(num => `樂段 ${num}`).join(' ➔ ')
-                : d.structure.join(' ➔ ');
-
-            // 將陣列安全地編碼並傳入套用函數
+            const structureDisplay = type === 'reassembly' ? d.structure.map(num => `樂段 ${num}`).join(' ➔ ') : d.structure.join(' ➔ ');
             const encodedStructure = encodeURIComponent(JSON.stringify(d.structure));
             const songParam = d.song ? d.song : '';
 
-            html += `
-                <tr>
-                    <td style="color:#636e72;">${date}</td>
-                    <td><b>${d.class}</b></td>
-                    <td><b>${d.studentNumber}</b></td>
-                    <td style="color:#6c5ce7; font-weight:bold;">${structureDisplay}</td>
-                    <td>
-                        <button class="btn" style="background: linear-gradient(135deg, #00b894, #0984e3); color:white; padding: 6px 12px; font-size: 14px;" 
-                        onclick="window.applyStudentWork('${type}', '${encodedStructure}', '${songParam}')">🪄 套用</button>
-                    </td>
-                </tr>`;
+            html += `<tr>
+                <td style="color:#636e72;">${date}</td><td><b>${d.class}</b></td><td><b>${d.studentNumber}</b></td>
+                <td style="color:#6c5ce7; font-weight:bold;">${structureDisplay}</td>
+                <td><button class="btn" style="background: linear-gradient(135deg, #00b894, #0984e3); color:white; padding: 6px 12px; font-size: 14px;" 
+                onclick="window.applyStudentWork('${type}', '${encodedStructure}', '${songParam}')">🪄 套用</button></td>
+            </tr>`;
         });
         return html + '</tbody></table>';
     }
 
-    // --- 套用學生作品 ---
     window.applyStudentWork = (type, encodedStructure, song) => {
-        // 1. 解碼並更新本地結構陣列
-        const decodedStructure = JSON.parse(decodeURIComponent(encodedStructure));
-        structures[type] = decodedStructure;
-
-        // 2. 如果是分析題，同步下拉選單的樂曲名稱
-        if (type === 'analysis' && song) {
-            document.getElementById('song-select').value = song;
-        }
-
-        // 3. 渲染對應區塊
+        structures[type] = JSON.parse(decodeURIComponent(encodedStructure));
+        if (type === 'analysis' && song) document.getElementById('song-select').value = song;
         render(type);
-
-        // 4. 切換到該學生的頁籤並捲動到最上方
         window.switchTab(type);
         window.scrollTo({ top: 0, behavior: 'smooth' });
-
-        alert('✅ 已套用該學生的作品！您可以直接檢視或點擊「播放全曲」來聆聽。');
+        alert('✅ 已套用該學生的作品！');
     };
 </script>
 
