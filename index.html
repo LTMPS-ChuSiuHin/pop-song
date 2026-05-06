@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>流行曲結構學習系統</title>
+    <style>
+        /* 全局與背景設定 */
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        body {
+            font-family: 'Segoe UI', "Microsoft JhengHei", "PingFang HK", sans-serif;
+            margin: 0; padding: 0;
+            background: linear-gradient(-45deg, #e0c3fc, #8ec5fc, #a1c4fd, #c2e9fb);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            color: #2d3436; min-height: 100vh;
+        }
+
+        header {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(15px);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+            padding: 20px; text-align: center;
+            position: sticky; top: 0; z-index: 100;
+        }
+        h1 { margin: 0; color: #2c3e50; font-size: 28px; font-weight: 900; letter-spacing: 1px;}
+
+        .student-bar {
+            background: linear-gradient(90deg, #2c3e50, #34495e);
+            color: white; padding: 12px;
+            display: flex; justify-content: center; align-items: center; gap: 20px;
+            box-shadow: inset 0 -3px 0 rgba(0,0,0,0.2);
+        }
+        .student-bar label { font-weight: bold; display: flex; align-items: center; gap: 8px;}
+        .student-bar select, .student-bar input { padding: 6px 12px; border-radius: 6px; border: none; font-size: 15px; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.2); outline: none; }
+
+        /* 導覽列 */
+        nav { display: flex; justify-content: center; gap: 15px; padding: 25px 20px; flex-wrap: wrap; }
+        nav button {
+            background: rgba(255, 255, 255, 0.6); border: 2px solid transparent;
+            padding: 12px 25px; cursor: pointer; font-weight: bold; border-radius: 30px;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            backdrop-filter: blur(5px); font-size: 16px; color: #555;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+        nav button:hover { transform: translateY(-3px); background: rgba(255,255,255,0.9); }
+        nav button.active { background: #fff; color: #6c5ce7; border-color: #6c5ce7; box-shadow: 0 8px 20px rgba(108, 92, 231, 0.25); }
+
+        /* 內容容器 */
+        .container {
+            max-width: 1100px; margin: 0 auto 50px auto; padding: 35px;
+            background: rgba(255, 255, 255, 0.75); border-radius: 24px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1); backdrop-filter: blur(15px);
+            border: 1px solid rgba(255,255,255,0.5);
+        }
+
+        .section { display: none; animation: fadeIn 0.5s cubic-bezier(0.165, 0.84, 0.44, 1); }
+        .section.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* 共用按鈕與結構塊樣式 */
+        .btn {
+            border: none; border-radius: 8px; cursor: pointer; font-weight: bold;
+            padding: 10px 18px; display: inline-flex; align-items: center; gap: 6px; justify-content: center;
+            transition: all 0.2s ease; box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(0,0,0,0.15); filter: brightness(1.05);}
+        .btn:active { transform: translateY(1px); box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .btn-action { background: #ff7675; color: white; }
+        .btn-play { background: #00b894; color: white; }
+        .btn-stop { background: #d63031; color: white; }
+        .btn-submit { background: linear-gradient(135deg, #0984e3, #6c5ce7); color: white; }
+
+        .structure-display { margin-top: 15px; padding: 25px; border: 2px dashed #a29bfe; min-height: 120px; border-radius: 16px; display: flex; flex-direction: column; gap: 12px; background: rgba(255, 255, 255, 0.4); }
+        .structure-item { padding: 15px 20px; border-radius: 12px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; cursor: grab; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+        .structure-item.playing { border: 2px solid #00b894; box-shadow: 0 0 15px rgba(0, 184, 148, 0.6); animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(0,184,148,0.4); } 70% { box-shadow: 0 0 0 10px rgba(0,184,148,0); } 100% { box-shadow: 0 0 0 0 rgba(0,184,148,0); } }
+
+        .color-intro { background: #74b9ff; color: #fff;} .color-verse { background: #55efc4; color: #2d3436;} 
+        .color-chorus { background: #ff7675; color: #fff;} .color-interlude { background: #fab1a0; color: #2d3436;} 
+        .color-outro { background: #dfe6e9; color: #2d3436;}
+
+        /* 重組介面 */
+        .reassembly-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; }
+        .module-row { display: flex; justify-content: space-between; align-items: center; background: #fff; padding: 12px 15px; border-radius: 12px; margin-bottom: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border-left: 4px solid #6c5ce7; gap: 10px; }
+        .module-row span { font-weight: 800; font-size: 16px; color: #2c3e50; min-width: 90px; }
+
+        .audio-slider { -webkit-appearance: none; flex-grow: 1; height: 6px; background: #dfe6e9; border-radius: 5px; outline: none; cursor: pointer; }
+        .audio-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 16px; height: 16px; border-radius: 50%; background: #0984e3; cursor: pointer; transition: 0.2s; }
+
+        /* 教師檢視介面 */
+        .review-controls { display: flex; gap: 20px; align-items: center; background: rgba(255,255,255,0.6); padding: 20px; border-radius: 16px; margin-bottom: 25px; border: 1px solid rgba(255,255,255,0.8); }
+        .review-table { width: 100%; border-collapse: collapse; background: white; margin-bottom: 30px; border-radius: 12px; overflow: hidden; }
+        .review-table th, .review-table td { padding: 15px; text-align: left; border-bottom: 1px solid #f1f2f6; }
+        .review-table th { background: linear-gradient(90deg, #6c5ce7, #a29bfe); color: white; font-weight: bold; }
+        .song-group-title { background: #f1f2f6; padding: 12px 20px; border-left: 5px solid #00b894; margin: 25px 0 10px 0; font-weight: 800; font-size: 18px; border-radius: 0 8px 8px 0; display: flex; justify-content: space-between; align-items: center;}
+        .score-badge { background: #f1c40f; color: #2d3436; padding: 4px 10px; border-radius: 20px; font-weight: 900; font-size: 14px; }
+        .avg-badge { background: #ffeaa7; color: #d35400; padding: 6px 12px; border-radius: 8px; font-size: 16px; }
+        .wrong-part { color: #d63031; font-weight: 900; background: #ffeaa7; padding: 2px 6px; border-radius: 4px; }
+        .empty-state { text-align: center; padding: 40px; color: #636e72; font-size: 18px; font-weight: bold; background: rgba(255,255,255,0.5); border-radius: 12px; border: 2px dashed #b2bec3;}
+
+        /* ================= 修改重點：走馬燈特效核心樣式 ================= */
+        .marquee-container {
+            width: 100%; 
+            /* 修改1：显著加長黑色區域 (原250px) */
+            height: 500px; 
+            background: #000; /* 使用純黑 */
+            border-radius: 20px;
+            overflow: hidden; 
+            position: relative; 
+            display: flex; 
+            align-items: center;
+            box-shadow: inset 0 0 50px rgba(255,255,255,0.1), 0 10px 30px rgba(0,0,0,0.5);
+            margin-bottom: 25px; 
+            border: 8px solid #222; /* 加粗邊框 */
+        }
+        .marquee-text {
+            /* 修改2：顯著加大走馬燈字體 (原90px) */
+            font-size: 270px; 
+            font-weight: 900; 
+            white-space: nowrap; 
+            position: absolute;
+            left: 100%; 
+            transform: translateX(0%); 
+            font-family: "Microsoft JhengHei", sans-serif;
+            letter-spacing: 20px; /* 加大字距 */
+        }
+        .scroll-animation {
+            /* 修改3：因為字變大了，稍微延長滾動時間保持速度流暢 (原5s) */
+            animation: scrollText 8s linear infinite;
+        }
+        @keyframes scrollText {
+            0% { left: 100%; transform: translateX(0%); }
+            100% { left: 0%; transform: translateX(-100%); }
+        }
+        /* 霓虹燈特效強度升級 */
+        .neon-blue { color: #fff; text-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 40px #0984e3, 0 0 80px #0984e3, 0 0 120px #0984e3; }
+        .neon-green { color: #fff; text-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 40px #00b894, 0 0 80px #00b894, 0 0 120px #00b894; }
+        .neon-pink { color: #fff; text-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 40px #fd79a8, 0 0 80px #fd79a8, 0 0 120px #fd79a8; }
+        .neon-yellow { color: #fff; text-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 40px #f1c40f, 0 0 80px #f1c40f, 0 0 120px #f1c40f; }
+        .neon-purple { color: #fff; text-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 40px #a29bfe, 0 0 80px #a29bfe, 0 0 120px #a29bfe; }
+        
+        .neon-btn {
+            background: #222; border-width: 2px; border-style: solid; padding: 12px 25px;
+            font-size: 18px; letter-spacing: 2px; border-radius: 30px; transition: 0.3s;
+        }
+        .neon-btn:hover { background: #333; transform: scale(1.05); }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>🎵 流行曲結構學習系統</h1>
+</header>
+
+<div class="student-bar">
+    <label>🎓 班別：
+        <select id="student-class">
+            <option value="6A">6A</option><option value="6B">6B</option>
+            <option value="6C">6C</option><option value="6D">6D</option>
+            <option value="6E">6E</option>
+        </select>
+    </label>
+    <label>🔢 學號：<input type="number" id="student-num" min="1" max="40" placeholder="1-40"></label>
+</div>
+
+<nav>
+    <button id="nav-analysis" class="active" onclick="window.switchTab('analysis')">🧩 樂曲結構分析</button>
+    <button id="nav-reassembly" onclick="window.switchTab('reassembly')">🎧 流行曲重組</button>
+    <button id="nav-marquee" onclick="window.switchTab('marquee')">✨ 霓虹走馬燈</button>
+    <button id="nav-review" onclick="window.switchTab('review')">📋 課業檢視 (教師)</button>
+</nav>
+
+<div class="container">
+    <div id="sec-analysis" class="section active">
+        <h2 style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #6c5ce7; padding-bottom: 10px; color:#2c3e50;">
+            樂曲結構分析 
+            <button class="btn btn-submit" onclick="window.submitAssignment('analysis')">📤 提交並核對答案</button>
+        </h2>
+        <div style="margin-bottom: 20px;">
+            <label style="font-weight: bold; font-size: 18px;">請選擇分析樂曲：</label>
+            <select id="song-select" style="padding: 10px; width: 220px; border-radius: 8px; border: 1px solid #ccc; font-weight: bold; margin-left: 10px;" onchange="window.clear('analysis')">
+                <option value="世上只有">世上只有 (9 個段落)</option>
+                <option value="真的愛你">真的愛你 (10 個段落)</option>
+                <option value="單車">單車 (9 個段落)</option>
+            </select>
+        </div>
+        <div style="background: rgba(255,255,255,0.5); padding: 20px; border-radius: 16px; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.8);">
+            <h3 style="margin-top: 0; color: #2d3436;">新增段落：</h3>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button class="btn color-intro" onclick="window.addPart('analysis','前奏')">前奏</button>
+                <button class="btn color-verse" onclick="window.addPart('analysis','主歌')">主歌</button>
+                <button class="btn color-chorus" onclick="window.addPart('analysis','副歌')">副歌</button>
+                <button class="btn color-interlude" onclick="window.addPart('analysis','間奏')">間奏</button>
+                <button class="btn color-outro" onclick="window.addPart('analysis','尾聲')">尾聲</button>
+                <button class="btn btn-action" style="margin-left: auto;" onclick="window.clear('analysis')">🗑️ 清空</button>
+            </div>
+        </div>
+        <div id="analysis-display" class="structure-display"></div>
+    </div>
+
+    <div id="sec-reassembly" class="section">
+        <h2 style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #00b894; padding-bottom: 10px; color:#2c3e50;">
+            流行曲重組 
+            <button class="btn btn-submit" style="background: linear-gradient(135deg, #00b894, #55efc4);" onclick="window.submitAssignment('reassembly')">📤 上載課業</button>
+        </h2>
+        <div class="reassembly-grid">
+            <div>
+                <h3 style="color: #2d3436; display: flex; justify-content: space-between; align-items: center;">
+                    1. 試聽與選擇樂段
+                    <button id="hint-btn" class="btn" style="background:#f1c40f; color:#2d3436; font-size: 14px; padding: 6px 12px;" onclick="window.toggleHint()">💡 顯示提示</button>
+                </h3>
+                <div id="module-container"></div>
+            </div>
+            <div>
+                <h3 style="color: #2d3436;">2. 控制與結構排列</h3>
+                <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
+                    <button class="btn btn-play" onclick="window.playSequence()">▶ 播放全曲</button>
+                    <button class="btn btn-stop" onclick="window.stopAudio()">⏹ 停止播放</button>
+                    <button class="btn btn-action" onclick="window.clear('reassembly')">🗑️ 清空</button>
+                </div>
+                <div id="reassembly-display" class="structure-display" style="min-height: 250px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="sec-marquee" class="section">
+        <h2 style="border-bottom: 2px solid #fd79a8; padding-bottom: 10px; color:#2c3e50;">✨ 霓虹走馬燈</h2>
+        <p style="color: #636e72; margin-bottom: 20px; font-weight: bold;">按下方的按鈕，黑幕上將顯示對應樂段的霓虹巨型走馬燈：</p>
+        
+        <div class="marquee-container">
+            <div id="marquee-display" class="marquee-text" style="display: none;"></div>
+        </div>
+        
+        <div style="display: flex; gap: 15px; justify-content: center; flex-wrap: wrap; background: rgba(255,255,255,0.6); padding: 25px; border-radius: 16px;">
+            <button class="btn neon-btn" style="color: #74b9ff; border-color: #0984e3;" onclick="window.playMarquee('前奏', 'neon-blue')">前奏</button>
+            <button class="btn neon-btn" style="color: #55efc4; border-color: #00b894;" onclick="window.playMarquee('主歌', 'neon-green')">主歌</button>
+            <button class="btn neon-btn" style="color: #fd79a8; border-color: #e84393;" onclick="window.playMarquee('副歌', 'neon-pink')">副歌</button>
+            <button class="btn neon-btn" style="color: #ffeaa7; border-color: #f1c40f;" onclick="window.playMarquee('間奏', 'neon-yellow')">間奏</button>
+            <button class="btn neon-btn" style="color: #a29bfe; border-color: #6c5ce7;" onclick="window.playMarquee('尾聲', 'neon-purple')">尾聲</button>
+            
+            <button class="btn btn-stop" style="margin-left: 10px;" onclick="window.stopMarquee()">⏹ 關閉走馬燈</button>
+        </div>
+    </div>
+
+    <div id="sec-review" class="section">
+        <h2 style="border-bottom: 2px solid #e17055; padding-bottom: 10px; color:#2c3e50;">課業檢視中心</h2>
+        <div class="review-controls">
+            <label style="font-weight:bold; color:#2d3436;">選擇班別：
+                <select id="filter-class" onchange="window.renderReviewList()">
+                    <option value="">-- 請選擇班別 --</option>
+                    <option value="6A">6A</option>
+                    <option value="6B">6B</option>
+                    <option value="6C">6C</option>
+                    <option value="6D">6D</option>
+                    <option value="6E">6E</option>
+                </select>
+            </label>
+            <label style="font-weight:bold; color:#2d3436;">課業類別：
+                <select id="filter-type" onchange="window.renderReviewList()">
+                    <option value="">-- 請選擇類別 --</option>
+                    <option value="analysis">樂曲結構分析</option>
+                    <option value="reassembly">流行曲重組</option>
+                </select>
+            </label>
+            <button class="btn" style="background:#0984e3; color:white; margin-left:auto;" onclick="window.fetchData()">🔄 從雲端讀取/刷新</button>
+        </div>
+        <div id="review-list">
+            <div class="empty-state">👆 請先在上方點擊「刷新」，並選擇【班別】與【課業類別】以顯示學生資料。</div>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
+    import { getFirestore, collection, addDoc, getDocs, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
+
+    // Firebase 配置 (保留之前的配置)
+    const firebaseConfig = {
+      apiKey: "AIzaSyBOXaRT3m9vFDJwfTMQ_DFHLnNvgY6UHeU",
+      authDomain: "ltmps-rhythmgame.firebaseapp.com",
+      projectId: "ltmps-rhythmgame",
+      storageBucket: "ltmps-rhythmgame.firebasestorage.app",
+      messagingSenderId: "66957159600",
+      appId: "1:66957159600:web:9cda88f32f7c61fa65df75"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // 資料與狀態變數
+    const structures = { analysis: [], reassembly: [] };
+    const analysisColors = { '前奏': 'color-intro', '主歌': 'color-verse', '副歌': 'color-chorus', '間奏': 'color-interlude', '尾聲': 'color-outro' };
+    
+    const songAnswers = {
+        '世上只有': ['前奏', '主歌', '副歌', '間奏', '主歌', '副歌', '間奏', '副歌', '尾聲'],
+        '真的愛你': ['前奏', '主歌', '副歌', '間奏', '主歌', '副歌', '間奏', '副歌', '副歌', '尾聲'],
+        '單車': ['前奏', '主歌', '副歌', '間奏', '主歌', '副歌', '間奏', '副歌', '尾聲']
+    };
+
+    const hintMapping = { 1: '前奏', 2: '副歌1', 3: '主歌1', 4: '副歌3+尾聲', 5: '主歌2', 6: '副歌2+橋段', 7: '間奏' };
+    let isHintOn = false;
+    
+    let currentAudio = null;
+    let activeModule = null; 
+    let reviewData = []; 
+    let hasFetchedData = false;
+
+    // 初始化：重組清單
+    window.onload = () => {
+        const modC = document.getElementById('module-container');
+        for(let i=1; i<=7; i++) {
+            modC.innerHTML += `
+                <div class="module-row">
+                    <span id="mod-text-${i}">樂段 ${i}</span>
+                    <input type="range" id="progress-${i}" class="audio-slider" min="0" max="100" value="0" step="0.1" oninput="window.seekAudio(${i}, this.value)">
+                    <div style="display:flex; gap:8px; min-width: 150px; justify-content: flex-end;">
+                        <button id="btn-play-${i}" class="btn" style="background:#0984e3; color:white; width: 75px;" onclick="window.preview(${i}, '${i}.wav')">▶ 試聽</button>
+                        <button class="btn btn-add" style="background:#6c5ce7; color:white;" onclick="window.addPart('reassembly','${i}')">+ 加入</button>
+                    </div>
+                </div>`;
+        }
+    };
+
+    // 切換頁籤與停止播放
+    window.switchTab = (t) => {
+        document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+        document.getElementById('nav-'+t).classList.add('active');
+        document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+        document.getElementById('sec-'+t).classList.add('active');
+        window.stopAudio();
+        
+        // 離開走馬燈頁籤時自動停止效果
+        if(t !== 'marquee') window.stopMarquee();
+    };
+
+    window.toggleHint = () => {
+        isHintOn = !isHintOn;
+        document.getElementById('hint-btn').innerHTML = isHintOn ? '💡 隱藏提示' : '💡 顯示提示';
+        for(let i=1; i<=7; i++) {
+            document.getElementById(`mod-text-${i}`).innerText = isHintOn ? hintMapping[i] : `樂段 ${i}`;
+        }
+        render('reassembly'); 
+    };
+
+    // 結構分析與重組核心邏輯
+    window.addPart = (type, val) => { 
+        if(type === 'analysis') {
+            const song = document.getElementById('song-select').value;
+            const maxSlots = songAnswers[song].length;
+            if(structures.analysis.length >= maxSlots) {
+                return alert(`⚠️ 「${song}」最多只能放入 ${maxSlots} 個段落！`);
+            }
+        }
+        structures[type].push(val); 
+        render(type); 
+    };
+    
+    window.removePart = (type, index) => { structures[type].splice(index, 1); render(type); };
+    window.clear = (type) => { structures[type] = []; render(type); window.stopAudio(); };
+
+    function render(type) {
+        const div = document.getElementById(type + '-display');
+        div.innerHTML = '';
+        structures[type].forEach((v, i) => {
+            const item = document.createElement('div');
+            item.className = 'structure-item ' + (type === 'analysis' ? analysisColors[v] : '');
+            
+            if(type === 'reassembly') {
+                const hue = (parseInt(v)*40)%360;
+                item.style.background = `hsl(${hue}, 80%, 85%)`;
+                item.style.color = `hsl(${hue}, 80%, 20%)`;
+                item.style.border = `1px solid hsl(${hue}, 80%, 75%)`;
+            }
+            
+            item.draggable = true;
+            const displayText = type === 'analysis' ? v : (isHintOn ? hintMapping[v] : `樂段 ${v}`);
+            
+            item.innerHTML = `
+                <span style="display:flex; align-items:center; gap:10px;">
+                    <span style="opacity:0.5;">⣿</span> ${displayText}
+                </span>
+                <button style="border:none; background:rgba(0,0,0,0.1); border-radius:50%; width:28px; height:28px; cursor:pointer; color:#333; font-weight:bold; transition:0.2s;" onmouseover="this.style.background='#ff7675'; this.style.color='white';" onmouseout="this.style.background='rgba(0,0,0,0.1)'; this.style.color='#333';" onclick="window.removePart('${type}',${i})">✕</button>`;
+            
+            item.ondragstart = (e) => { e.dataTransfer.setData('index', i); setTimeout(()=>item.style.opacity='0.5',0); };
+            item.ondragend = () => { item.style.opacity='1'; };
+            item.ondragover = (e) => e.preventDefault();
+            item.ondrop = (e) => {
+                const from = e.dataTransfer.getData('index');
+                if(from === '') return;
+                const target = structures[type].splice(from, 1)[0];
+                structures[type].splice(i, 0, target);
+                render(type);
+            };
+            div.appendChild(item);
+        });
+    }
+
+    // 音樂控制
+    window.resetPreviewUI = () => {
+        activeModule = null;
+        document.querySelectorAll('[id^="btn-play-"]').forEach(btn => btn.innerHTML = '▶ 試聽');
+    };
+
+    window.preview = (modIndex, f, startPercent = 0) => {
+        if(activeModule === modIndex && currentAudio && !currentAudio.paused) {
+            currentAudio.pause();
+            document.getElementById(`btn-play-${modIndex}`).innerHTML = '▶ 試聽';
+            return;
+        }
+        window.stopAudio();
+        activeModule = modIndex;
+        currentAudio = new Audio(f);
+
+        const playBtn = document.getElementById(`btn-play-${modIndex}`);
+        playBtn.innerHTML = '⏸ 暫停';
+
+        currentAudio.onloadedmetadata = () => {
+            if(startPercent > 0) currentAudio.currentTime = (startPercent / 100) * currentAudio.duration;
+        };
+
+        const slider = document.getElementById(`progress-${modIndex}`);
+        currentAudio.ontimeupdate = () => {
+            if(currentAudio.duration) slider.value = (currentAudio.currentTime / currentAudio.duration) * 100;
+        };
+
+        currentAudio.onended = () => {
+            slider.value = 0;
+            window.resetPreviewUI();
+        };
+
+        currentAudio.play().catch(e=>alert('無法播放音檔，請確認音檔存在路徑。'));
+    };
+
+    window.seekAudio = (modIndex, percent) => {
+        if (activeModule === modIndex && currentAudio) {
+            currentAudio.currentTime = (percent / 100) * currentAudio.duration;
+        } else {
+            window.preview(modIndex, `${modIndex}.wav`, percent);
+        }
+    };
+
+    window.stopAudio = () => { 
+        if(currentAudio){ currentAudio.pause(); currentAudio.currentTime = 0; } 
+        window.resetPreviewUI();
+        document.querySelectorAll('.audio-slider').forEach(s => s.value = 0);
+    };
+    
+    window.playSequence = async () => {
+        if(structures.reassembly.length === 0) return alert('請先加入樂段！');
+        window.stopAudio();
+        for(let i=0; i<structures.reassembly.length; i++) {
+            await new Promise(res => {
+                currentAudio = new Audio(`${structures.reassembly[i]}.wav`);
+                
+                const displayDiv = document.getElementById('reassembly-display');
+                Array.from(displayDiv.children).forEach(el => el.classList.remove('playing'));
+                if(displayDiv.children[i]) displayDiv.children[i].classList.add('playing');
+                
+                currentAudio.play().catch(e => { alert('找不到音檔'); res(); });
+                currentAudio.onended = () => {
+                    if(displayDiv.children[i]) displayDiv.children[i].classList.remove('playing');
+                    res();
+                };
+            });
+        }
+    };
+
+    // --- 走馬燈控制邏輯 ---
+    window.playMarquee = (text, neonClass) => {
+        const display = document.getElementById('marquee-display');
+        display.style.display = 'block';
+        
+        // 重置動畫
+        display.classList.remove('scroll-animation');
+        void display.offsetWidth; // 觸發 reflow
+        
+        display.innerText = text;
+        display.className = `marquee-text scroll-animation ${neonClass}`;
+    };
+
+    window.stopMarquee = () => {
+        const display = document.getElementById('marquee-display');
+        display.style.display = 'none';
+        display.className = 'marquee-text';
+    };
+
+    // --- Firebase 資料提交與檢視 ---
+    window.submitAssignment = async (type) => {
+        const c = document.getElementById('student-class').value;
+        const nRaw = document.getElementById('student-num').value;
+        const n = parseInt(nRaw, 10);
+        
+        if(!n || n < 1 || n > 40) return alert('❌ 請輸入正確學號 (1-40)！');
+        if(structures[type].length === 0) return alert('❌ 結構不能為空！');
+
+        let score = 0;
+        let maxScore = 0;
+        const songName = type === 'analysis' ? document.getElementById('song-select').value : null;
+
+        if(type === 'analysis') {
+            const correctAnswer = songAnswers[songName];
+            maxScore = correctAnswer.length;
+            
+            if(structures.analysis.length !== maxScore) {
+                return alert(`❌ 請注意：「${songName}」必須填滿 ${maxScore} 個段落才可提交！\n(你目前放了 ${structures.analysis.length} 個)`);
+            }
+
+            for(let i=0; i<maxScore; i++) {
+                if(structures.analysis[i] === correctAnswer[i]) score++;
+            }
+        }
+
+        const btn = event.target;
+        const originalText = btn.innerHTML;
+        btn.innerHTML = "⏳ 處理中..."; btn.disabled = true;
+
+        const payload = {
+            class: c, studentNumber: n, taskType: type,
+            structure: structures[type],
+            timestamp: serverTimestamp()
+        };
+
+        if (type === 'analysis') {
+            payload.song = songName;
+            payload.score = score;
+            payload.maxScore = maxScore;
+        }
+
+        try {
+            await addDoc(collection(db, "music_assignments"), payload);
+            if(type === 'analysis') {
+                alert(`✅ 上載成功！\n🎯 你的分數是：${score} / ${maxScore} 分`);
+            } else {
+                alert('✅ 流行曲重組上載成功！');
+            }
+        } catch(e) { 
+            alert('❌ 失敗: 請檢查網路連線。'); 
+        } finally { 
+            btn.innerHTML = originalText; btn.disabled = false; 
+        }
+    };
+
+    window.fetchData = async () => {
+        const btn = event.target;
+        const originalText = btn.innerHTML;
+        btn.innerHTML = "⏳ 讀取中..."; btn.disabled = true;
+        
+        try {
+            const q = query(collection(db, "music_assignments"), orderBy("timestamp", "desc"));
+            const snap = await getDocs(q);
+            reviewData = [];
+            snap.forEach(doc => reviewData.push(doc.data()));
+            hasFetchedData = true;
+            window.renderReviewList();
+        } catch(e) { 
+            document.getElementById('review-list').innerHTML = '<div class="empty-state" style="color:red;">❌ 讀取失敗。</div>'; 
+        } finally { 
+            btn.innerHTML = originalText; btn.disabled = false; 
+        }
+    };
+
+    window.renderReviewList = () => {
+        const container = document.getElementById('review-list');
+        const selectedClass = document.getElementById('filter-class').value;
+        const selectedType = document.getElementById('filter-type').value;
+
+        if (!hasFetchedData) return container.innerHTML = '<div class="empty-state">👆 請先點擊右上方的「刷新」按鈕。</div>';
+        if (!selectedClass || !selectedType) return container.innerHTML = '<div class="empty-state">🔍 請選擇上方選單中的【班別】與【課業類別】。</div>';
+
+        const filteredData = reviewData.filter(d => d.class === selectedClass && d.taskType === selectedType);
+        container.innerHTML = ''; 
+
+        if (selectedType === 'analysis') {
+            const songs = ['世上只有', '真的愛你', '單車'];
+            let hasAnyData = false;
+            songs.forEach(songName => {
+                const songData = filteredData.filter(d => d.song === songName);
+                if (songData.length > 0) {
+                    hasAnyData = true;
+                    
+                    const maxScore = songAnswers[songName].length;
+                    const totalScore = songData.reduce((sum, d) => sum + (d.score || 0), 0);
+                    const avgScore = (totalScore / songData.length).toFixed(1);
+
+                    container.innerHTML += `
+                        <div class="song-group-title">
+                            <span>🎵 歌曲：${songName} (${songData.length} 份)</span>
+                            <span class="avg-badge">📊 全班平均：<b>${avgScore} / ${maxScore}</b></span>
+                        </div>`;
+                    container.innerHTML += generateTable(songData, 'analysis');
+                }
+            });
+            if (!hasAnyData) container.innerHTML = `<div class="empty-state">暫無 ${selectedClass} 班的分析紀錄。</div>`;
+        } else {
+            if (filteredData.length > 0) {
+                container.innerHTML += `<div class="song-group-title"><span>🎧 流行曲重組 (${filteredData.length} 份)</span></div>`;
+                container.innerHTML += generateTable(filteredData, 'reassembly');
+            } else {
+                container.innerHTML = `<div class="empty-state">暫無 ${selectedClass} 班的重組紀錄。</div>`;
+            }
+        }
+    };
+
+    function generateTable(data, type) {
+        let html = `<table class="review-table"><thead><tr><th>提交時間</th><th>學號</th>`;
+        if (type === 'analysis') html += `<th>分數</th>`;
+        html += `<th>結構序列</th><th>操作</th></tr></thead><tbody>`;
+        
+        data.forEach(d => {
+            const date = d.timestamp ? d.timestamp.toDate().toLocaleString('zh-HK') : '剛剛';
+            
+            let structureDisplay = '';
+            if (type === 'analysis') {
+                const correctAnswer = songAnswers[d.song];
+                const partsHTML = d.structure.map((part, idx) => {
+                    if (correctAnswer && part !== correctAnswer[idx]) {
+                        return `<span class="wrong-part">${part}</span>`;
+                    }
+                    return `<span style="color:#2c3e50;">${part}</span>`;
+                });
+                structureDisplay = partsHTML.join(' ➔ ');
+            } else {
+                structureDisplay = d.structure.map(num => `樂段 ${num}`).join(' <span style="color:#b2bec3;">➔</span> ');
+            }
+
+            const encodedStructure = encodeURIComponent(JSON.stringify(d.structure));
+            const songParam = d.song ? d.song : '';
+
+            html += `<tr>
+                <td style="color:#636e72;">${date}</td><td><b>${d.studentNumber}</b></td>`;
+            
+            if (type === 'analysis') {
+                const scoreDisplay = d.score !== undefined ? `${d.score} / ${d.maxScore}` : '-';
+                const isFullMarks = d.score === d.maxScore;
+                const badgeStyle = isFullMarks ? 'background:#00b894; color:white;' : (d.score !== undefined ? 'background:#ff7675; color:white;' : '');
+                html += `<td><span class="score-badge" style="${badgeStyle}">${scoreDisplay}</span></td>`;
+            }
+
+            html += `<td style="font-weight:bold;">${structureDisplay}</td>
+                <td><button class="btn" style="background: linear-gradient(135deg, #00b894, #0984e3); color:white; padding: 6px 12px; font-size: 14px;" 
+                onclick="window.applyStudentWork('${type}', '${encodedStructure}', '${songParam}')">🪄 套用</button></td>
+            </tr>`;
+        });
+        return html + '</tbody></table>';
+    }
+
+    window.applyStudentWork = (type, encodedStructure, song) => {
+        structures[type] = JSON.parse(decodeURIComponent(encodedStructure));
+        if (type === 'analysis' && song) document.getElementById('song-select').value = song;
+        render(type);
+        window.switchTab(type);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        alert('✅ 已套用該學生的作品！可以進行聆聽或檢視。');
+    };
+</script>
+
+</body>
+</html>
